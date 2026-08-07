@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodFinder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+
+    <nav class="navbar">
+
+        <div class="logo">🍽️ FoodFinder</div>
+    
+
+        <ul class="nav-links">
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Restaurants</a></li>
+            <li><a href="#">Categories</a></li>
+            <li><a href="#">Contact</a></li>
+             <li><a href="#" id="showFavorites">Favorites</a></li>
+        </ul>
+      <button id="themeBtn">🌙</button>
+    </nav>
+
+</header>
+
+<section class="hero">
+
+    <div class="hero-content">
+
+        <h1>Find Affordable & Quality Restaurants Near You</h1>
+
+        <p>
+            Search nearby restaurants with delicious food,affordable prices and excellent ratings.
+        </p>
+      <div class="search-box">
+    <input type="text" id="searchInput" placeholder="🔍Enter city...">
+    <button id="searchBtn">Search</button>
+        <div id="result"></div>
+      </div>
+      <button id="locationBtn">📍 Use My Location</button>
+
+<p id="userLocation"></p>
+      <button id="nearbyBtn">🍽️ Nearby Restaurants</button>
+      </div>
+</section>
+  <section class="trending">
+
+    <h2>🔥 Trending Restaurants</h2>
+
+    <div id="trendingList"></div>
+    
+  
+  </section>
+  <!-- ================= CATEGORIES ================= -->
+
+<section class="categories">
+
+    <h2>Popular Categories</h2>
+
+    <div class="category-container">
+
+        <div class="category-card">
+            <div class="icon">🍕</div>
+            <h3>Pizza</h3>
+        </div>
+
+        <div class="category-card">
+            <div class="icon">🍛</div>
+            <h3>Biryani</h3>
+        </div>
+
+        <div class="category-card">
+            <div class="icon">🍔</div>
+            <h3>Burgers</h3>
+        </div>
+
+        <div class="category-card">
+            <div class="icon">🥘</div>
+            <h3>South Indian</h3>
+        </div>
+
+        <div class="category-card">
+            <div class="icon">🍜</div>
+            <h3>Chinese</h3>
+        </div>
+
+        <div class="category-card">
+            <div class="icon">☕</div>
+            <h3>Cafes</h3>
+        </div>
+
+    </div>
+</section>
+  <div class="filters">
+
+    <select id="budgetFilter">
+        <option value="">Budget</option>
+        <option value="100">Below ₹100</option>
+        <option value="200">Below ₹200</option>
+        <option value="500">Below ₹500</option>
+    </select>
+
+    <select id="ratingFilter">
+        <option value="">Rating</option>
+        <option value="4">4+ ⭐</option>
+        <option value="4.5">4.5+ ⭐</option>
+    </select>
+
+    <select id="foodFilter">
+        <option value="">Food Type</option>
+        <option value="Biryani">Biryani</option>
+        <option value="South Indian">South Indian</option>
+        <option value="Fast Food">Fast Food</option>
+    </select>
+
+    <button id="filterBtn">Apply Filters</button>
+
+  </div>
+    <section class="recommendation">
+
+    <h2>🤖 AI Food Recommendation</h2>
+
+    <select id="aiBudget">
+        <option value="">Select Budget</option>
+        <option value="100">Below ₹100</option>
+        <option value="200">Below ₹200</option>
+        <option value="300">Below ₹300</option>
+    </select>
+
+    <select id="aiType">
+        <option value="">Select Food Type</option>
+        <option value="Biryani">Biryani</option>
+        <option value="South Indian">South Indian</option>
+        <option value="Fast Food">Fast Food</option>
+        <option value="Chinese">Chinese</option>
+    </select>
+
+    <button id="recommendBtn">
+        🍽 Recommend Restaurant
+    </button>
+
+    <div id="recommendResult"></div>
+
+</section>
+  <!-- ================= FEATURED RESTAURANTS ================= -->
+
+<section class="restaurants">
+
+    <h2>Featured Restaurants</h2>
+
+    <div class="restaurant-container">
+          <div class="restaurant-card"
+            data-name="Spicy Biryani House">
+            <img src="images/restaurant1.jpg" alt="Restaurant">
+
+            <div class="restaurant-info"                          onclick="showRestaurant('Paradise Biryani')">
+            <h3>Paradise Biryani</h3>
+            <p>📍 Hyderabad</p>
+             <p>⭐ 4.7</p>
+               <button type="button" onclick="showDetails(restaurants[0])">
+    View Details
+</button> 
+              <button onclick="saveFavorite('Paradise Biryani')">
+    ❤️ Favorite
+</button>
+   </div>
+</div>
+            
+     <div class="restaurant-card" 
+        data-name="Pizza Corner">
+            <img src="images/restaurant2.jpg" alt="Restaurant">
+
+            <div class="restaurant-info"
+            onclick="showRestaurant('Mehfil Restaurant')">
+            <h3>Mehfil Restaurant</h3>
+            <p>📍 Hyderabad</p>
+            <p>⭐ 4.7</p>
+             <button type="button" onclick="showDetails(restaurants[2])">
+    View Details
+</button>
+              <button onclick="saveFavorite('Mehfil Restaurant')">
+    ❤️ Favorite
+</button>
+            </div>
+        </div>
+
+        <div class="restaurant-card"
+          data-name="South Meals">
+            <img src="images/restaurant3.jpg" alt="Restaurant">
+
+             <div class="restaurant-info"
+              onclick="showRestaurant('Hotel Sri Balaji')">
+             <h3>Sri Balaji Hotel</h3>
+              <p>📍Nagarkurnool</p> 
+              <p>⭐ 4.7</p>
+          <button type="button" onclick="showDetails(restaurants[1])">
+    View Details
+</button>
+               <button onclick="saveFavorite('Hotel Sri Balaji')">
+    ❤️ Favorite
+</button>
+            </div>
+               
+        </div>
+      <div id="restaurantDetails"></div>
+      
+</div>
+  
+</section>
+            <section class="booking">
+
+    <h2>📅 Book a Table</h2>
+
+    <form id="bookingForm">
+
+        <input type="text" id="customerName" placeholder="Your Name" required>
+
+        <input type="date" id="bookingDate" required>
+
+        <input type="time" id="bookingTime" required>
+
+        <input type="number" id="guests" placeholder="Number of Guests" min="1" required>
+
+        <button type="submit">Book Now</button>
+
+    </form>
+
+    <div id="bookingMessage"></div>
+
+</section>
+            
+  <section class="reviews">
+    <div id="popup" class="popup">
+    <div class="popup-content">
+      <span id="closePopup">&times;</span>
+
+        <h2 id="popupName"></h2>
+        <p id="popupLocation"></p>
+        <p id="popupPrice"></p>
+        <p id="popupRating"></p>
+        <p id="popupType"></p>
+    </div>
+</div>
+
+    <h2>Customer Reviews</h2>
+
+    <input type="text" id="userName" placeholder="Your Name">
+
+    <select id="userRating">
+        <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+        <option value="4">⭐⭐⭐⭐ (4)</option>
+        <option value="3">⭐⭐⭐ (3)</option>
+        <option value="2">⭐⭐ (2)</option>
+        <option value="1">⭐ (1)</option>
+    </select>
+
+    <textarea id="userReview" placeholder="Write your review..."></textarea>
+
+    <button id="reviewBtn">Submit Review</button>
+
+    <div id="reviewList"></div>
+
+  </section>
+          <section class="profile">
+
+    <h2>👤 My Profile</h2>
+
+    <div class="profile-card">
+      <p><strong>Name:</strong> <span id="profileName">Guest</span></p>
+
+<p><strong>Favorite Restaurants:</strong> <span id="favoriteCount">0</span></p>
+
+<p><strong>Total Bookings:</strong> <span id="bookingCount">0</span></p>
+
+</section>
+          <section class="reservations">
+
+    <h2>📅 My Reservations</h2>
+
+    <div id="reservationList"></div>
+
+</section>
+    <script src="script.js"></script>
+  </body>
+        </html>>
+
+
