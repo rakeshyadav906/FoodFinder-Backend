@@ -1,5 +1,6 @@
 
 
+
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./db");
@@ -7,7 +8,7 @@ connectDB();
 
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const restaurantRoutes = require("./routes/restaurants");
 
