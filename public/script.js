@@ -1,106 +1,59 @@
+
+
+
+
+
+
+
 let restaurants = [];
+
 async function loadRestaurants() {
     try {
-        const response = await fetch("http://localhost:3000/api/restaurants");
-        restaurants = await response.json();
+        const response = await fetch("/api/restaurants");
+
+        if (!response.ok) {
+            throw new Error("Failed to load restaurants");
+        }
+
+        const data = await response.json();
+
+        restaurants = data.map(r => ({
+            ...r,
+            price: Number(r.price) || 0,
+            rating: Number(r.rating) || 0,
+            status: r.status || "Open",
+            trending: r.trending !== false,
+            type: r.type || "Other",
+            phone: r.phone || "",
+            website: r.website || "",
+            menu: r.menu || [],
+            image: r.image
+                ? (r.image.startsWith("images/")
+                    ? r.image
+                    : "images/" + r.image)
+                : "images/restaurant1.jpg"
+        }));
 
         displayRestaurants(restaurants);
         showTrending();
+
+        console.log("✅ Restaurants loaded from MongoDB:", restaurants);
+
     } catch (error) {
-        console.error("Error loading restaurants:", error);
+        console.error("❌ Error loading restaurants:", error);
+
+        if (result) {
+            result.innerHTML =
+                "<h3>❌ Unable to load restaurants.</h3>";
+        }
     }
 }
 
-loadRestaurants();
 const searchInput = document.getElementById("searchInput");
 const searchBtn = document.getElementById("searchBtn");
 const result = document.getElementById("result");
- restaurants = [
-{
-    name: "Paradise Biryani",
-    location: "Hyderabad",
-    price: 200,
-    rating: 4.7,
-    type: "Biryani",
-    status: "Open",
-    trending: true,
-    maps: "https://maps.google.com/?q=Paradise+Biryani+Hyderabad",
-    image: "images/paradise.jpg",
 
-    phone: "+91 9876543210",
-
-    website: "https://paradisefoodcourt.in",
-
-    menu: [
-        "Chicken Biryani - ₹220",
-        "Mutton Biryani - ₹320",
-        "Veg Biryani - ₹180"
-    ]
-},
-{
-    name: "Hotel Sri Balaji",
-    location: "Nagarkurnool",
-    price: 100,
-    rating: 4.3,
-    type: "South Indian",
-    status: "Open",
-    trending: true,
-    maps: "https://maps.google.com/?q=Hotel+Sri+Balaji+Nagarkurnool",
-    image: "images/balaji.jpg",
-
-    phone: "+91 9876543210",
-
-    website: "https://paradisefoodcourt.in",
-
-    menu: [
-        "Chicken Biryani - ₹220",
-        "Mutton Biryani - ₹320",
-        "Veg Biryani - ₹180"
-    ]
-},
-{
-    name: "Mehfil Restaurant",
-    location: "Hyderabad",
-    price: 150,
-    rating: 4.5,
-    type: "Biryani",
-    status: "Open",
-    trending:true,
-    maps: "https://maps.google.com/?q=Mehfil+Restaurant+Hyderabad",
-    image: "images/mehfil.jpg",
-
-    phone: "+91 9876543210",
-
-    website: "https://paradisefoodcourt.in",
-
-    menu: [
-        "Chicken Biryani - ₹220",
-        "Mutton Biryani - ₹320",
-        "Veg Biryani - ₹180"
-    ]
-},
-{
-    name: "Udupi Restaurant",
-    location: "Bangalore",
-    price: 180,
-    rating: 4.6,
-    type: "South Indian",
-    status: "Open",
-    trending: true,
-    maps: "https://maps.google.com/?q=Udupi+Restaurant+Bangalore",
-    image: "images/udupi.jpg",
-
-    phone: "+91 9876543210",
-
-    website: "https://paradisefoodcourt.in",
-
-    menu: [
-        "Chicken Biryani - ₹220",
-        "Mutton Biryani - ₹320",
-        "Veg Biryani - ₹180"
-    ]
-}
-];
+loadRestaurants();
 function searchRestaurants() {
 
     const city = searchInput.value.trim().toLowerCase();
@@ -607,4 +560,5 @@ if (bookingCountEl) {
 }
 
 updateProfile();
+
 
