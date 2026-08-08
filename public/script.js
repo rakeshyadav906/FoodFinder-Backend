@@ -5,6 +5,7 @@
 
 
 
+
 let restaurants = [];
 
 async function loadRestaurants() {
