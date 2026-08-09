@@ -17,9 +17,6 @@ app.use(express.static("public"));
 
 app.use("/api/restaurants", restaurantRoutes);
 
-app.get("/", (req, res) => {
-  res.send("🚀 FoodFinder Backend is Running!");
-});
 
 // Allow other devices on the same network to access FoodFinder
 app.listen(PORT, "0.0.0.0", () => {
