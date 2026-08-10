@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodFinder - Register</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="login-container">
+
+    <h2>🍽️ Create FoodFinder Account</h2>
+
+    <form id="registerForm">
+
+        <input
+            type="text"
+            id="registerUsername"
+            placeholder="Username"
+            required
+        >
+
+        <input
+            type="email"
+            id="registerEmail"
+            placeholder="Email"
+            required
+        >
+
+        <input
+            type="password"
+            id="registerPassword"
+            placeholder="Password"
+            minlength="6"
+            required
+        >
+
+        <button type="submit">
+            Create Account
+        </button>
+
+    </form>
+
+    <p id="registerMessage"></p>
+
+    <p style="margin-top:20px;">
+        Already have an account?
+        <a href="login.html">Login</a>
+    </p>
+
+</div>
+
+<script>
+const registerForm = document.getElementById("registerForm");
+const registerMessage = document.getElementById("registerMessage");
+
+registerForm.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const username =
+        document.getElementById("registerUsername").value.trim();
+
+    const email =
+        document.getElementById("registerEmail").value.trim();
+
+    const password =
+        document.getElementById("registerPassword").value;
+
+    registerMessage.textContent = "Creating account...";
+
+    try {
+
+        const response = await fetch("/api/auth/register", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                username,
+                email,
+                password
+            })
+
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Registration failed");
+        }
+
+        registerMessage.textContent =
+            "✅ Account created successfully!";
+
+        registerForm.reset();
+
+        setTimeout(() => {
+            window.location.href = "login.html";
+        }, 1000);
+
+    } catch (error) {
+
+        console.error(error);
+
+        registerMessage.textContent =
+            "❌ " + error.message;
+    }
+
+});
+</script>
+
+</body>
+</html>

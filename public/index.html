@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,13 +18,22 @@
     
 
         <ul class="nav-links">
-            <li><a href="#">Home</a></li>
-            <li><a href="#">Restaurants</a></li>
-            <li><a href="#">Categories</a></li>
-            <li><a href="#">Contact</a></li>
-             <li><a href="#" id="showFavorites">Favorites</a></li>
-        </ul>
-      <button id="themeBtn">🌙</button>
+    <li><a href="#">Home</a></li>
+    <li><a href="#">Restaurants</a></li>
+    <li><a href="#">Categories</a></li>
+    <li><a href="#">Contact</a></li>
+    <li><a href="#" id="showFavorites">Favorites</a></li>
+<li>
+    <a href="login.html" id="loginNavBtn">Login</a>
+</li>
+
+<li>
+    <a href="#" id="logoutBtn" style="display:none;">Logout</a>
+</li>
+</ul>
+
+<button id="themeBtn">🌙</button>
+<button id="logoutBtn">🚪 Logout</button>
     </nav>
 
 </header>
@@ -33,9 +43,7 @@
     <div class="hero-content">
 
         <h1>Find Affordable & Quality Restaurants Near You</h1>
-
-        <p>
-            Search nearby restaurants with delicious food,affordable prices and excellent ratings.
+<p> Search nearby restaurants with delicious food,affordable prices and excellent ratings.
         </p>
       <div class="search-box">
     <input type="text" id="searchInput" placeholder="🔍Enter city...">

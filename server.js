@@ -10,10 +10,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const restaurantRoutes = require("./routes/restaurants");
+const authRoutes = require("./routes/auth");
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
+app.use("/api/auth", authRoutes);
+
 
 app.use("/api/restaurants", restaurantRoutes);
 
