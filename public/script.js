@@ -1,203 +1,11 @@
-const Restaurant = require("../models/Restaurant");
-
-// Escape special characters before using user input in MongoDB regex
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-exports.getRestaurants = async (req, res) => {
-  try {
-    const {
-      search,
-      location,
-      type,
-      category,
-      maxPrice,
-      minRating,
-      sort
-    } = req.query;
-
-    const filter = {};
-
-    // =========================
-    // SEARCH
-    // =========================
-    if (search && search.trim() !== "") {
-      const searchText = escapeRegex(search.trim());
-
-      filter.$or = [
-        {
-          name: {
-            $regex: searchText,
-            $options: "i"
-          }
-        },
-        {
-          location: {
-            $regex: searchText,
-            $options: "i"
-          }
-        },
-        {
-          type: {
-            $regex: searchText,
-            $options: "i"
-          }
-        }
-      ];
-    }
-
-    // =========================
-    // LOCATION FILTER
-    // =========================
-    if (location && location.trim() !== "") {
-      filter.location = {
-        $regex: escapeRegex(location.trim()),
-        $options: "i"
-      };
-    }
-
-    // =========================
-    // FOOD TYPE / CATEGORY
-    // =========================
-    const selectedType = type || category;
-
-    if (
-      selectedType &&
-      selectedType.trim() !== "" &&
-      selectedType.toLowerCase() !== "all"
-    ) {
-      filter.type = {
-        $regex: `^${escapeRegex(selectedType.trim())}$`,
-        $options: "i"
-      };
-    }
-
-    // =========================
-    // MAXIMUM PRICE
-    // =========================
-    if (maxPrice !== undefined && maxPrice !== "") {
-      const price = Number(maxPrice);
-
-      if (!Number.isNaN(price)) {
-        filter.price = {
-          $lte: price
-        };
-      }
-    }
-
-    // =========================
-    // MINIMUM RATING
-    // =========================
-    if (minRating !== undefined && minRating !== "") {
-      const rating = Number(minRating);
-
-      if (!Number.isNaN(rating)) {
-        filter.rating = {
-          $gte: rating
-        };
-      }
-    }
-
-    // =========================
-    // SORTING
-    // =========================
-    let sortOption = {};
-
-    switch (sort) {
-      case "ratingDesc":
-        sortOption = {
-          rating: -1
-        };
-        break;
-
-      case "ratingAsc":
-        sortOption = {
-          rating: 1
-        };
-        break;
-
-      case "priceAsc":
-        sortOption = {
-          price: 1
-        };
-        break;
-
-      case "priceDesc":
-        sortOption = {
-          price: -1
-        };
-        break;
-
-      case "nameAsc":
-        sortOption = {
-          name: 1
-        };
-        break;
-
-      case "nameDesc":
-        sortOption = {
-          name: -1
-        };
-        break;
-
-      default:
-        sortOption = {};
-    }
-
-    // =========================
-    // DATABASE QUERY
-    // =========================
-    const restaurants = await Restaurant
-      .find(filter)
-      .sort(sortOption);
-
-    // =========================
-    // RESPONSE
-    // =========================
-    res.status(200).json(restaurants);
-
-  } catch (error) {
-    console.error("❌ Restaurant API Error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch restaurants",
-      error: error.message
-    });
-  }
-};
-const express = require("express");
-
-const router = express.Router();
-
-const restaurantController = require("../controllers/restaurantController");
-
-// GET all restaurants
-// GET /api/restaurants
-//
-// Search:
-// GET /api/restaurants?search=biryani
-//
-// Filters:
-// GET /api/restaurants?maxPrice=300
-// GET /api/restaurants?minRating=4
-// GET /api/restaurants?type=Biryani
-//
-// Sorting:
-// GET /api/restaurants?sort=ratingDesc
-// GET /api/restaurants?sort=priceAsc
-
-router.get("/", restaurantController.getRestaurants);
-
-module.exports = router;
 // ======================================================
-// FOODFINDER - STAGE 2
-// MongoDB Search + Filters + Sorting + Categories
+// FOODFINDER - COMPLETE STAGE 2 SCRIPT
+// Compatible with current index.html + style.css
 // ======================================================
 
 let restaurants = [];
 
+const API_URL = "/api/restaurants";
 
 // ======================================================
 // DOM ELEMENTS
@@ -208,31 +16,15 @@ const searchBtn = document.getElementById("searchBtn");
 const result = document.getElementById("result");
 
 const filterBtn = document.getElementById("filterBtn");
-
 const budgetFilter = document.getElementById("budgetFilter");
 const ratingFilter = document.getElementById("ratingFilter");
 const foodFilter = document.getElementById("foodFilter");
 
-const sortFilter = document.getElementById("sortFilter");
-const categoryFilter = document.getElementById("categoryFilter");
-
-const trendingList = document.getElementById("trendingList");
+const themeBtn = document.getElementById("themeBtn");
 
 
 // ======================================================
-// API URL
-// ======================================================
-
-// Relative URL works on:
-// http://127.0.0.1:3000
-// AND
-// https://foodfinder-backend-m4dg.onrender.com
-
-const API_URL = "/api/restaurants";
-
-
-// ======================================================
-// ESCAPE HTML
+// HTML ESCAPE
 // ======================================================
 
 function escapeHTML(value) {
@@ -250,11 +42,10 @@ function escapeHTML(value) {
 
 
 // ======================================================
-// FORMAT RESTAURANT DATA
+// NORMALIZE RESTAURANT DATA
 // ======================================================
 
-function formatRestaurant(r) {
-
+function normalizeRestaurant(r) {
     return {
         ...r,
 
@@ -262,11 +53,19 @@ function formatRestaurant(r) {
 
         rating: Number(r.rating) || 0,
 
-        status: r.status || "Open",
+        name: r.name || "Unknown Restaurant",
 
-        trending: r.trending !== false,
+        location: r.location || "Location unavailable",
 
         type: r.type || "Other",
+
+        image: r.image
+            ? (
+                r.image.startsWith("images/")
+                    ? r.image
+                    : "images/" + r.image
+            )
+            : "images/restaurant1.jpg",
 
         phone: r.phone || "",
 
@@ -276,19 +75,15 @@ function formatRestaurant(r) {
             ? r.menu
             : [],
 
-        image: r.image
-            ? (
-                r.image.startsWith("images/")
-                    ? r.image
-                    : "images/" + r.image
-            )
-            : "images/restaurant1.jpg"
+        status: r.status || "Open",
+
+        trending: r.trending !== false
     };
 }
 
 
 // ======================================================
-// LOAD RESTAURANTS FROM MONGODB
+// LOAD RESTAURANTS
 // ======================================================
 
 async function loadRestaurants(params = {}) {
@@ -297,7 +92,7 @@ async function loadRestaurants(params = {}) {
 
         if (result) {
             result.innerHTML = `
-                <div class="loading">
+                <div class="restaurant-card">
                     <h3>⏳ Loading restaurants...</h3>
                 </div>
             `;
@@ -305,37 +100,22 @@ async function loadRestaurants(params = {}) {
 
         const query = new URLSearchParams();
 
-        // Search
         if (params.search) {
             query.set("search", params.search);
         }
 
-        // Location
-        if (params.location) {
-            query.set("location", params.location);
-        }
-
-        // Type
-        if (params.type) {
-            query.set("type", params.type);
-        }
-
-        // Category
-        if (params.category) {
-            query.set("category", params.category);
-        }
-
-        // Price
         if (params.maxPrice) {
             query.set("maxPrice", params.maxPrice);
         }
 
-        // Rating
         if (params.minRating) {
             query.set("minRating", params.minRating);
         }
 
-        // Sorting
+        if (params.type) {
+            query.set("type", params.type);
+        }
+
         if (params.sort) {
             query.set("sort", params.sort);
         }
@@ -344,49 +124,51 @@ async function loadRestaurants(params = {}) {
             ? `${API_URL}?${query.toString()}`
             : API_URL;
 
-        console.log("🔎 API Request:", url);
+        console.log("🌐 Request:", url);
 
         const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(
-                `Server returned ${response.status}`
+                `API Error: ${response.status}`
             );
         }
 
         const data = await response.json();
 
         if (!Array.isArray(data)) {
-            throw new Error("Invalid restaurant data received");
+            throw new Error(
+                "Invalid restaurant response"
+            );
         }
 
-        restaurants = data.map(formatRestaurant);
+        restaurants = data.map(
+            normalizeRestaurant
+        );
+
+        console.log(
+            "✅ Restaurants loaded:",
+            restaurants
+        );
 
         displayRestaurants(restaurants);
 
         showTrending();
 
-        console.log(
-            "✅ Restaurants loaded from MongoDB:",
-            restaurants
-        );
+        updateProfile();
 
     } catch (error) {
 
         console.error(
-            "❌ Error loading restaurants:",
+            "❌ Restaurant loading error:",
             error
         );
 
         if (result) {
-
             result.innerHTML = `
-                <div class="error-message">
+                <div class="restaurant-card">
                     <h3>❌ Unable to load restaurants</h3>
-                    <p>Please try again.</p>
-                    <button onclick="loadRestaurants()">
-                        🔄 Retry
-                    </button>
+                    <p>Please refresh and try again.</p>
                 </div>
             `;
         }
@@ -395,7 +177,7 @@ async function loadRestaurants(params = {}) {
 
 
 // ======================================================
-// DISPLAY RESTAURANTS
+// DISPLAY SEARCH / FILTER RESULTS
 // ======================================================
 
 function displayRestaurants(list) {
@@ -409,104 +191,104 @@ function displayRestaurants(list) {
     if (!list || list.length === 0) {
 
         result.innerHTML = `
-            <div class="no-results">
+            <div class="restaurant-card">
                 <h3>😔 No restaurants found</h3>
-                <p>Try changing your search or filters.</p>
+                <p>Try another search or filter.</p>
             </div>
         `;
 
         return;
     }
 
-
     list.forEach((r, index) => {
 
-        const image = escapeHTML(r.image);
-
-        const name = escapeHTML(r.name);
-
-        const location = escapeHTML(r.location);
-
-        const type = escapeHTML(r.type);
-
-        const rating = Number(r.rating).toFixed(1);
-
-        const price = Number(r.price);
-
-
         result.innerHTML += `
+            <div class="restaurant-card">
 
-        <div class="restaurant-card">
-
-            <img
-                src="${image}"
-                class="restaurant-img"
-                alt="${name}"
-                onerror="this.src='images/restaurant1.jpg'"
-            >
-
-            <h3>${name}</h3>
-
-            <p>
-                ⭐ ${rating}
-            </p>
-
-            <p>
-                📍 ${location}
-            </p>
-
-            <p>
-                💰 ₹${price}
-            </p>
-
-            <p>
-                🍽️ ${type}
-            </p>
-
-            <p>
-                ${r.status === "Closed" ? "🔴 Closed" : "🟢 Open"}
-            </p>
-
-            <div class="restaurant-buttons">
-
-                <button onclick="showMenu(${index})">
-                    🍽️ View Menu
-                </button>
-
-                ${
-                    r.phone
-                        ? `
-                        <button
-                            onclick="callRestaurant('${escapeHTML(r.phone)}')"
-                        >
-                            📞 Call
-                        </button>
-                        `
-                        : ""
-                }
-
-                ${
-                    r.website
-                        ? `
-                        <button
-                            onclick="openWebsite('${escapeHTML(r.website)}')"
-                        >
-                            🌐 Website
-                        </button>
-                        `
-                        : ""
-                }
-
-                <button
-                    onclick="saveFavorite('${escapeHTML(r.name)}')"
+                <img
+                    src="${escapeHTML(r.image)}"
+                    class="restaurant-img"
+                    alt="${escapeHTML(r.name)}"
+                    onerror="this.src='images/restaurant1.jpg'"
                 >
-                    ❤️ Favorite
-                </button>
+
+                <div class="restaurant-info">
+
+                    <h3>
+                        ${escapeHTML(r.name)}
+                    </h3>
+
+                    <p>
+                        📍 ${escapeHTML(r.location)}
+                    </p>
+
+                    <p>
+                        ⭐ ${r.rating.toFixed(1)}
+                    </p>
+
+                    <p>
+                        💰 ₹${r.price}
+                    </p>
+
+                    <p>
+                        🍽️ ${escapeHTML(r.type)}
+                    </p>
+
+                    <p class="${
+                        r.status.toLowerCase() === "closed"
+                            ? "closed"
+                            : "open"
+                    }">
+                        ${
+                            r.status.toLowerCase() === "closed"
+                                ? "🔴 Closed"
+                                : "🟢 Open"
+                        }
+                    </p>
+
+                    <button
+                        type="button"
+                        onclick="showDetails(restaurants[${index}])"
+                    >
+                        👁️ View Details
+                    </button>
+
+                    <button
+                        type="button"
+                        onclick="saveFavorite('${escapeHTML(r.name)}')"
+                    >
+                        ❤️ Favorite
+                    </button>
+
+                    ${
+                        r.phone
+                            ? `
+                                <button
+                                    type="button"
+                                    onclick="callRestaurant('${escapeHTML(r.phone)}')"
+                                >
+                                    📞 Call
+                                </button>
+                            `
+                            : ""
+                    }
+
+                    ${
+                        r.website
+                            ? `
+                                <button
+                                    type="button"
+                                    onclick="openWebsite('${escapeHTML(r.website)}')"
+                                >
+                                    🌐 Website
+                                </button>
+                            `
+                            : ""
+                    }
+
+                </div>
 
             </div>
-
-        </div>
-
         `;
     });
 }
@@ -525,6 +307,12 @@ function searchRestaurants() {
     const searchText =
         searchInput.value.trim();
 
+    if (!searchText) {
+
+        loadRestaurants();
+
+        return;
+    }
 
     loadRestaurants({
         search: searchText
@@ -532,132 +320,81 @@ function searchRestaurants() {
 }
 
 
-// Search button
 if (searchBtn) {
 
     searchBtn.addEventListener(
         "click",
         searchRestaurants
     );
+
 }
 
 
-// Enter key
 if (searchInput) {
 
     searchInput.addEventListener(
-        "keyup",
+        "keydown",
         function(event) {
 
             if (event.key === "Enter") {
-
+                event.preventDefault();
                 searchRestaurants();
-
             }
 
         }
     );
+
 }
 
 
 // ======================================================
-// STAGE 2 FILTERS
+// FILTERS
 // ======================================================
 
 function applyFilters() {
 
     const params = {};
 
+    const search =
+        searchInput
+            ? searchInput.value.trim()
+            : "";
 
-    // -------------------------
-    // Search
-    // -------------------------
+    const budget =
+        budgetFilter
+            ? budgetFilter.value
+            : "";
 
-    if (searchInput) {
+    const rating =
+        ratingFilter
+            ? ratingFilter.value
+            : "";
 
-        const search =
-            searchInput.value.trim();
+    const food =
+        foodFilter
+            ? foodFilter.value
+            : "";
 
-        if (search) {
-            params.search = search;
-        }
+
+    if (search) {
+        params.search = search;
     }
 
-
-    // -------------------------
-    // Budget
-    // -------------------------
-
-    if (
-        budgetFilter &&
-        budgetFilter.value !== ""
-    ) {
-
-        params.maxPrice =
-            budgetFilter.value;
+    if (budget) {
+        params.maxPrice = budget;
     }
 
-
-    // -------------------------
-    // Rating
-    // -------------------------
-
-    if (
-        ratingFilter &&
-        ratingFilter.value !== ""
-    ) {
-
-        params.minRating =
-            ratingFilter.value;
+    if (rating) {
+        params.minRating = rating;
     }
 
-
-    // -------------------------
-    // Food Type
-    // -------------------------
-
-    if (
-        foodFilter &&
-        foodFilter.value !== "" &&
-        foodFilter.value.toLowerCase() !== "all"
-    ) {
-
-        params.type =
-            foodFilter.value;
-    }
-
-
-    // -------------------------
-    // Category
-    // -------------------------
-
-    if (
-        categoryFilter &&
-        categoryFilter.value !== "" &&
-        categoryFilter.value.toLowerCase() !== "all"
-    ) {
-
-        params.category =
-            categoryFilter.value;
-    }
-
-
-    // -------------------------
-    // Sorting
-    // -------------------------
-
-    if (
-        sortFilter &&
-        sortFilter.value !== ""
-    ) {
-
-        params.sort =
-            sortFilter.value;
+    if (food) {
+        params.type = food;
     }
 
 
     console.log(
-        "🔎 Applying Stage 2 filters:",
+        "🔎 Applying filters:",
         params
     );
 
@@ -666,585 +403,211 @@ function applyFilters() {
 }
 
 
-// Filter button
 if (filterBtn) {
 
     filterBtn.addEventListener(
         "click",
         applyFilters
     );
+
 }
 
 
 // ======================================================
-// SORTING
+// CATEGORY CARDS
 // ======================================================
 
-if (sortFilter) {
-
-    sortFilter.addEventListener(
-        "change",
-        applyFilters
-    );
-}
-
-
-// ======================================================
-// CATEGORY FILTER
-// ======================================================
-
-if (categoryFilter) {
-
-    categoryFilter.addEventListener(
-        "change",
-        applyFilters
-    );
-}
-
-
-// ======================================================
-// FOOD TYPE FILTER
-// ======================================================
-
-if (foodFilter) {
-
-    foodFilter.addEventListener(
-        "change",
-        applyFilters
-    );
-}
-
-
-// ======================================================
-// RESET FILTERS
-// ======================================================
-
-function resetFilters() {
-
-    if (searchInput) {
-        searchInput.value = "";
-    }
-
-    if (budgetFilter) {
-        budgetFilter.value = "";
-    }
-
-    if (ratingFilter) {
-        ratingFilter.value = "";
-    }
-
-    if (foodFilter) {
-        foodFilter.value = "";
-    }
-
-    if (categoryFilter) {
-        categoryFilter.value = "";
-    }
-
-    if (sortFilter) {
-        sortFilter.value = "";
-    }
-
-
-    loadRestaurants();
-}
-
-
-// Make available to HTML onclick
-window.resetFilters = resetFilters;
-
-
-// ======================================================
-// TRENDING RESTAURANTS
-// ======================================================
-
-function showTrending() {
-
-    if (!trendingList) {
-        return;
-    }
-
-    trendingList.innerHTML = "";
-
-
-    restaurants
-        .filter(r => r.trending)
-        .forEach(r => {
-
-            trendingList.innerHTML += `
-
-                <div class="trending-card">
-
-                    <h3>
-                        ${escapeHTML(r.name)}
-                    </h3>
-
-                    <p>
-                        ⭐ ${Number(r.rating).toFixed(1)}
-                    </p>
-
-                    <p>
-                        📍 ${escapeHTML(r.location)}
-                    </p>
-
-                    <p>
-                        🍽️ ${escapeHTML(r.type)}
-                    </p>
-
-                </div>
-
-            `;
-
-        });
-}
-
-
-// ======================================================
-// FAVORITES
-// ======================================================
-
-function saveFavorite(name) {
-
-    let favorites =
-        JSON.parse(
-            localStorage.getItem("favorites")
-        ) || [];
-
-
-    if (!favorites.includes(name)) {
-
-        favorites.push(name);
-
-        localStorage.setItem(
-            "favorites",
-            JSON.stringify(favorites)
-        );
-
-        alert(
-            name +
-            " added to Favorites ❤️"
-        );
-
-    } else {
-
-        alert(
-            "Already in Favorites ❤️"
-        );
-    }
-}
-
-
-const showFavorites =
-    document.getElementById(
-        "showFavorites"
+const categoryCards =
+    document.querySelectorAll(
+        ".category-card"
     );
 
 
-if (showFavorites) {
+categoryCards.forEach(card => {
 
-    showFavorites.addEventListener(
+    card.addEventListener(
         "click",
         function() {
 
-            const favorites =
-                JSON.parse(
-                    localStorage.getItem(
-                        "favorites"
-                    )
-                ) || [];
+            const categoryName =
+                this.querySelector("h3")
+                    ?.textContent
+                    .trim();
 
-
-            if (favorites.length === 0) {
-
-                alert(
-                    "No Favorite Restaurants"
-                );
-
+            if (!categoryName) {
                 return;
             }
 
-
-            alert(
-                "Your Favorites:\n\n" +
-                favorites.join("\n")
+            console.log(
+                "🍽️ Category:",
+                categoryName
             );
+
+
+            if (searchInput) {
+                searchInput.value =
+                    categoryName;
+            }
+
+
+            loadRestaurants({
+                search: categoryName
+            });
 
         }
     );
+
+});
+
+
+// ======================================================
+// THEME TOGGLE
+// ======================================================
+
+function applySavedTheme() {
+
+    const theme =
+        localStorage.getItem(
+            "foodfinderTheme"
+        );
+
+    if (theme === "light") {
+
+        document.body.classList.add(
+            "light"
+        );
+
+        if (themeBtn) {
+            themeBtn.textContent = "☀️";
+        }
+
+    } else {
+
+        document.body.classList.remove(
+            "light"
+        );
+
+        if (themeBtn) {
+            themeBtn.textContent = "🌙";
+        }
+    }
 }
 
 
-// ======================================================
-// CALL RESTAURANT
-// ======================================================
+if (themeBtn) {
 
-function callRestaurant(phone) {
+    themeBtn.addEventListener(
+        "click",
+        function() {
 
-    if (!phone) {
+            document.body.classList.toggle(
+                "light"
+            );
 
-        alert(
-            "Phone number not available."
-        );
+            const isLight =
+                document.body.classList.contains(
+                    "light"
+                );
 
-        return;
-    }
+            localStorage.setItem(
+                "foodfinderTheme",
+                isLight
+                    ? "light"
+                    : "dark"
+            );
 
-    window.location.href =
-        "tel:" + phone;
-}
+            themeBtn.textContent =
+                isLight
+                    ? "☀️"
+                    : "🌙";
 
-window.callRestaurant =
-    callRestaurant;
-
-
-// ======================================================
-// OPEN WEBSITE
-// ======================================================
-
-function openWebsite(website) {
-
-    if (!website) {
-
-        alert(
-            "Website not available."
-        );
-
-        return;
-    }
-
-
-    let url = website.trim();
-
-
-    if (
-        !url.startsWith("http://") &&
-        !url.startsWith("https://")
-    ) {
-
-        url =
-            "https://" + url;
-    }
-
-
-    window.open(
-        url,
-        "_blank"
+        }
     );
+
 }
 
-window.openWebsite =
-    openWebsite;
+
+applySavedTheme();
 
 
 // ======================================================
-// MENU
+// SHOW RESTAURANT DETAILS
 // ======================================================
 
-function showMenu(index) {
+function showRestaurant(name) {
+
+    const details =
+        document.getElementById(
+            "restaurantDetails"
+        );
+
+    if (!details) {
+        return;
+    }
 
     const restaurant =
-        restaurants[index];
+        restaurants.find(
+            r => r.name === name
+        );
 
+
+    if (restaurant) {
+
+        showDetails(restaurant);
+
+        return;
+    }
+
+
+    details.innerHTML = `
+        <div class="details-card">
+
+            <h2>
+                ${escapeHTML(name)}
+            </h2>
+
+            <p>
+                🍽️ Delicious food with
+                affordable prices.
+            </p>
+
+            <p>
+                ⭐ Highly rated restaurant.
+            </p>
+
+        </div>
+    `;
+
+}
+
+
+window.showRestaurant =
+    showRestaurant;
+
+
+// ======================================================
+// VIEW DETAILS POPUP
+// ======================================================
+
+function showDetails(restaurant) {
 
     if (!restaurant) {
 
         alert(
-            "Restaurant not found."
+            "Restaurant details unavailable."
         );
 
         return;
     }
-
-
-    if (
-        !restaurant.menu ||
-        restaurant.menu.length === 0
-    ) {
-
-        alert(
-            "🍽️ Menu information is not available yet."
-        );
-
-        return;
-    }
-
-
-    let menu =
-        "🍽️ " +
-        restaurant.name +
-        "\n\n";
-
-
-    restaurant.menu.forEach(
-        item => {
-
-            menu +=
-                "• " +
-                item +
-                "\n";
-
-        }
-    );
-
-
-    alert(menu);
-}
-
-window.showMenu =
-    showMenu;
-
-
-// ======================================================
-// LOCATION
-// ======================================================
-
-const locationBtn =
-    document.getElementById(
-        "locationBtn"
-    );
-
-const userLocation =
-    document.getElementById(
-        "userLocation"
-    );
-
-
-if (locationBtn) {
-
-    locationBtn.addEventListener(
-        "click",
-        () => {
-
-            if (
-                navigator.geolocation
-            ) {
-
-                navigator.geolocation.getCurrentPosition(
-                    showPosition,
-                    showLocationError
-                );
-
-            } else {
-
-                if (userLocation) {
-
-                    userLocation.innerHTML =
-                        "❌ Geolocation is not supported.";
-
-                }
-
-            }
-
-        }
-    );
-}
-
-
-function showPosition(position) {
-
-    const latitude =
-        position.coords.latitude;
-
-    const longitude =
-        position.coords.longitude;
-
-
-    if (userLocation) {
-
-        userLocation.innerHTML =
-            `
-            📍 Latitude:
-            ${latitude}<br>
-
-            📍 Longitude:
-            ${longitude}
-            `;
-
-    }
-}
-
-
-function showLocationError(error) {
-
-    if (!userLocation) {
-        return;
-    }
-
-
-    switch (error.code) {
-
-        case error.PERMISSION_DENIED:
-
-            userLocation.innerHTML =
-                "❌ Location permission denied.";
-
-            break;
-
-
-        case error.POSITION_UNAVAILABLE:
-
-            userLocation.innerHTML =
-                "❌ Location unavailable.";
-
-            break;
-
-
-        case error.TIMEOUT:
-
-            userLocation.innerHTML =
-                "❌ Location request timed out.";
-
-            break;
-
-
-        default:
-
-            userLocation.innerHTML =
-                "❌ Unable to get location.";
-
-    }
-}
-
-
-// ======================================================
-// NEARBY RESTAURANTS
-// ======================================================
-
-const nearbyBtn =
-    document.getElementById(
-        "nearbyBtn"
-    );
-
-
-if (nearbyBtn) {
-
-    nearbyBtn.addEventListener(
-        "click",
-        () => {
-
-            if (
-                navigator.geolocation
-            ) {
-
-                navigator.geolocation.getCurrentPosition(
-                    openNearbyRestaurants,
-                    showLocationError
-                );
-
-            } else {
-
-                alert(
-                    "Geolocation is not supported."
-                );
-
-            }
-
-        }
-    );
-}
-
-
-function openNearbyRestaurants(position) {
-
-    const latitude =
-        position.coords.latitude;
-
-    const longitude =
-        position.coords.longitude;
-
-
-    const url =
-        `https://www.google.com/maps/search/restaurants/@${latitude},${longitude},15z`;
-
-
-    window.open(
-        url,
-        "_blank"
-    );
-}
-
-
-// ======================================================
-// LOGIN
-// ======================================================
-
-const loginBtn =
-    document.getElementById(
-        "loginBtn"
-    );
-
-
-if (loginBtn) {
-
-    loginBtn.addEventListener(
-        "click",
-        () => {
-
-            const username =
-                document.getElementById(
-                    "username"
-                )?.value.trim();
-
-
-            const password =
-                document.getElementById(
-                    "password"
-                )?.value;
-
-
-            if (
-                !username ||
-                !password
-            ) {
-
-                alert(
-                    "Please fill all fields!"
-                );
-
-                return;
-            }
-
-
-            localStorage.setItem(
-                "username",
-                username
-            );
-
-
-            alert(
-                "Welcome " +
-                username +
-                "!"
-            );
-
-
-            window.location.href =
-                "index.html";
-
-        }
-    );
-}
-
-
-// ======================================================
-// RESTAURANT DETAILS POPUP
-// ======================================================
-
-function showDetails(r) {
 
     const popup =
         document.getElementById(
             "popup"
         );
 
-
-    if (!popup || !r) {
+    if (!popup) {
         return;
     }
-
-
-    popup.style.display =
-        "flex";
 
 
     const popupName =
@@ -1274,43 +637,37 @@ function showDetails(r) {
 
 
     if (popupName) {
-
         popupName.textContent =
-            r.name;
-
+            restaurant.name;
     }
-
 
     if (popupLocation) {
-
         popupLocation.textContent =
-            "📍 " + r.location;
-
+            "📍 " +
+            restaurant.location;
     }
-
 
     if (popupPrice) {
-
         popupPrice.textContent =
-            "💰 ₹" + r.price;
-
+            "💰 ₹" +
+            restaurant.price;
     }
-
 
     if (popupRating) {
-
         popupRating.textContent =
-            "⭐ " + r.rating;
-
+            "⭐ " +
+            restaurant.rating;
     }
-
 
     if (popupType) {
-
         popupType.textContent =
-            "🍽️ " + r.type;
-
+            "🍽️ " +
+            restaurant.type;
     }
+
+
+    popup.style.display =
+        "flex";
 }
 
 
@@ -1318,7 +675,10 @@ window.showDetails =
     showDetails;
 
 
-// Close popup
+// ======================================================
+// CLOSE POPUP
+// ======================================================
+
 const closePopup =
     document.getElementById(
         "closePopup"
@@ -1327,7 +687,8 @@ const closePopup =
 
 if (closePopup) {
 
-    closePopup.onclick =
+    closePopup.addEventListener(
+        "click",
         function() {
 
             const popup =
@@ -1335,15 +696,585 @@ if (closePopup) {
                     "popup"
                 );
 
-
             if (popup) {
+                popup.style.display =
+                    "none";
+            }
+
+        }
+    );
+
+}
+
+
+// Close popup by clicking outside
+const popup =
+    document.getElementById(
+        "popup"
+    );
+
+
+if (popup) {
+
+    popup.addEventListener(
+        "click",
+        function(event) {
+
+            if (event.target === popup) {
 
                 popup.style.display =
                     "none";
 
             }
 
-        };
+        }
+    );
+
+}
+
+
+// ======================================================
+// FAVORITES
+// ======================================================
+
+function saveFavorite(name) {
+
+    let favorites =
+        JSON.parse(
+            localStorage.getItem(
+                "favorites"
+            )
+        ) || [];
+
+
+    if (!favorites.includes(name)) {
+
+        favorites.push(name);
+
+        localStorage.setItem(
+            "favorites",
+            JSON.stringify(
+                favorites
+            )
+        );
+
+        alert(
+            name +
+            " added to Favorites ❤️"
+        );
+
+    } else {
+
+        alert(
+            "Already in Favorites ❤️"
+        );
+
+    }
+
+
+    updateProfile();
+}
+
+
+window.saveFavorite =
+    saveFavorite;
+
+
+// ======================================================
+// SHOW FAVORITES
+// ======================================================
+
+const showFavorites =
+    document.getElementById(
+        "showFavorites"
+    );
+
+
+if (showFavorites) {
+
+    showFavorites.addEventListener(
+        "click",
+        function(event) {
+
+            event.preventDefault();
+
+            const favorites =
+                JSON.parse(
+                    localStorage.getItem(
+                        "favorites"
+                    )
+                ) || [];
+
+
+            if (favorites.length === 0) {
+
+                alert(
+                    "No Favorite Restaurants ❤️"
+                );
+
+                return;
+            }
+
+
+            alert(
+                "❤️ Your Favorites:\n\n" +
+                favorites.join("\n")
+            );
+
+        }
+    );
+
+}
+
+
+// ======================================================
+// LOCATION
+// ======================================================
+
+const locationBtn =
+    document.getElementById(
+        "locationBtn"
+    );
+
+const userLocation =
+    document.getElementById(
+        "userLocation"
+    );
+
+
+if (locationBtn) {
+
+    locationBtn.addEventListener(
+        "click",
+        function() {
+
+            if (!navigator.geolocation) {
+
+                if (userLocation) {
+                    userLocation.textContent =
+                        "❌ Geolocation is not supported.";
+                }
+
+                return;
+            }
+
+
+            navigator.geolocation.getCurrentPosition(
+                showPosition,
+                locationError
+            );
+
+        }
+    );
+
+}
+
+
+function showPosition(position) {
+
+    const latitude =
+        position.coords.latitude;
+
+    const longitude =
+        position.coords.longitude;
+
+
+    if (userLocation) {
+
+        userLocation.innerHTML = `
+            📍 Latitude: ${latitude}<br>
+            📍 Longitude: ${longitude}
+        `;
+
+    }
+
+}
+
+
+function locationError(error) {
+
+    if (!userLocation) {
+        return;
+    }
+
+
+    if (
+        error.code ===
+        error.PERMISSION_DENIED
+    ) {
+
+        userLocation.textContent =
+            "❌ Location permission denied.";
+
+    } else {
+
+        userLocation.textContent =
+            "❌ Unable to get your location.";
+
+    }
+
+}
+
+
+// ======================================================
+// NEARBY RESTAURANTS
+// ======================================================
+
+const nearbyBtn =
+    document.getElementById(
+        "nearbyBtn"
+    );
+
+
+if (nearbyBtn) {
+
+    nearbyBtn.addEventListener(
+        "click",
+        function() {
+
+            if (!navigator.geolocation) {
+
+                alert(
+                    "Geolocation is not supported."
+                );
+
+                return;
+            }
+
+
+            navigator.geolocation.getCurrentPosition(
+                openNearbyRestaurants,
+                locationError
+            );
+
+        }
+    );
+
+}
+
+
+function openNearbyRestaurants(position) {
+
+    const latitude =
+        position.coords.latitude;
+
+    const longitude =
+        position.coords.longitude;
+
+
+    const url =
+        `https://www.google.com/maps/search/restaurants/@${latitude},${longitude},15z`;
+
+
+    window.open(
+        url,
+        "_blank"
+    );
+
+}
+
+
+// ======================================================
+// AI RECOMMENDATION
+// ======================================================
+
+const recommendBtn =
+    document.getElementById(
+        "recommendBtn"
+    );
+
+
+if (recommendBtn) {
+
+    recommendBtn.addEventListener(
+        "click",
+        function() {
+
+            const budgetInput =
+                document.getElementById(
+                    "aiBudget"
+                );
+
+            const typeInput =
+                document.getElementById(
+                    "aiType"
+                );
+
+            const recommendationResult =
+                document.getElementById(
+                    "recommendResult"
+                );
+
+
+            if (!recommendationResult) {
+                return;
+            }
+
+
+            const budget =
+                budgetInput
+                    ? Number(
+                        budgetInput.value
+                    )
+                    : 0;
+
+
+            const type =
+                typeInput
+                    ? typeInput.value
+                    : "";
+
+
+            const found =
+                restaurants.filter(
+                    function(r) {
+
+                        const budgetOK =
+                            !budget ||
+                            r.price <= budget;
+
+
+                        const typeOK =
+                            !type ||
+                            r.type
+                                .toLowerCase()
+                                .includes(
+                                    type.toLowerCase()
+                                );
+
+
+                        return (
+                            budgetOK &&
+                            typeOK
+                        );
+
+                    }
+                );
+
+
+            if (found.length === 0) {
+
+                recommendationResult.innerHTML = `
+                    <div class="restaurant-card">
+
+                        <h3>
+                            ❌ No restaurant found
+                        </h3>
+
+                        <p>
+                            Try another budget
+                            or food type.
+                        </p>
+
+                    </div>
+                `;
+
+                return;
+            }
+
+
+            const best =
+                [...found].sort(
+                    function(a, b) {
+
+                        return (
+                            b.rating -
+                            a.rating
+                        );
+
+                    }
+                )[0];
+
+
+            recommendationResult.innerHTML = `
+                <div class="restaurant-card">
+
+                    <img
+                        src="${escapeHTML(best.image)}"
+                        class="restaurant-img"
+                        alt="${escapeHTML(best.name)}"
+                        onerror="this.src='images/restaurant1.jpg'"
+                    >
+
+                    <div class="restaurant-info">
+
+                        <h3>
+                            🤖 ${escapeHTML(best.name)}
+                        </h3>
+
+                        <p>
+                            📍 ${escapeHTML(best.location)}
+                        </p>
+
+                        <p>
+                            ⭐ ${best.rating.toFixed(1)}
+                        </p>
+
+                        <p>
+                            💰 ₹${best.price}
+                        </p>
+
+                        <p>
+                            🍽️ ${escapeHTML(best.type)}
+                        </p>
+
+                        <button
+                            type="button"
+                            id="recommendDetailsBtn"
+                        >
+                            👁️ View Details
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+
+            const detailsBtn =
+                document.getElementById(
+                    "recommendDetailsBtn"
+                );
+
+
+            if (detailsBtn) {
+
+                detailsBtn.addEventListener(
+                    "click",
+                    function() {
+
+                        showDetails(best);
+
+                    }
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+// ======================================================
+// BOOKING
+// ======================================================
+
+const bookingForm =
+    document.getElementById(
+        "bookingForm"
+    );
+
+
+if (bookingForm) {
+
+    bookingForm.addEventListener(
+        "submit",
+        function(event) {
+
+            event.preventDefault();
+
+
+            const name =
+                document.getElementById(
+                    "customerName"
+                )?.value.trim();
+
+
+            const date =
+                document.getElementById(
+                    "bookingDate"
+                )?.value;
+
+
+            const time =
+                document.getElementById(
+                    "bookingTime"
+                )?.value;
+
+
+            const guests =
+                document.getElementById(
+                    "guests"
+                )?.value;
+
+
+            if (
+                !name ||
+                !date ||
+                !time ||
+                !guests
+            ) {
+
+                alert(
+                    "Please fill all booking fields."
+                );
+
+                return;
+            }
+
+
+            const booking = {
+
+                name,
+                date,
+                time,
+                guests
+
+            };
+
+
+            const bookings =
+                JSON.parse(
+                    localStorage.getItem(
+                        "bookings"
+                    )
+                ) || [];
+
+
+            bookings.push(
+                booking
+            );
+
+
+            localStorage.setItem(
+                "bookings",
+                JSON.stringify(
+                    bookings
+                )
+            );
+
+
+            const message =
+                document.getElementById(
+                    "bookingMessage"
+                );
+
+
+            if (message) {
+
+                message.innerHTML = `
+                    ✅ Booking confirmed for
+                    <strong>${escapeHTML(name)}</strong>
+                    on
+                    <strong>${escapeHTML(date)}</strong>
+                    at
+                    <strong>${escapeHTML(time)}</strong>
+                    for
+                    <strong>${escapeHTML(guests)}</strong>
+                    guest(s).
+                `;
+
+            }
+
+
+            bookingForm.reset();
+
+            updateProfile();
+
+        }
+    );
+
 }
 
 
@@ -1361,7 +1292,7 @@ if (reviewBtn) {
 
     reviewBtn.addEventListener(
         "click",
-        () => {
+        function() {
 
             const name =
                 document.getElementById(
@@ -1402,9 +1333,7 @@ if (reviewBtn) {
             reviews.push({
 
                 name,
-
                 rating,
-
                 review
 
             });
@@ -1412,11 +1341,10 @@ if (reviewBtn) {
 
             localStorage.setItem(
                 "reviews",
-                JSON.stringify(reviews)
+                JSON.stringify(
+                    reviews
+                )
             );
-
-
-            displayReviews();
 
 
             document.getElementById(
@@ -1428,12 +1356,15 @@ if (reviewBtn) {
                 "userReview"
             ).value = "";
 
+
+            displayReviews();
+
         }
     );
+
 }
 
 
-// Display reviews
 function displayReviews() {
 
     const reviewList =
@@ -1458,29 +1389,30 @@ function displayReviews() {
     reviewList.innerHTML = "";
 
 
-    reviews.forEach(r => {
+    reviews.forEach(
+        function(r) {
 
-        reviewList.innerHTML += `
+            reviewList.innerHTML += `
+                <div class="review-card">
 
-            <div class="review-card">
+                    <h3>
+                        ${escapeHTML(r.name)}
+                    </h3>
 
-                <h3>
-                    ${escapeHTML(r.name)}
-                </h3>
+                    <p>
+                        ⭐ ${escapeHTML(r.rating)}/5
+                    </p>
 
-                <p>
-                    ⭐ ${escapeHTML(r.rating)}/5
-                </p>
+                    <p>
+                        ${escapeHTML(r.review)}
+                    </p>
 
-                <p>
-                    ${escapeHTML(r.review)}
-                </p>
+                </div>
+            `;
 
-            </div>
+        }
+    );
 
-        `;
-
-    });
 }
 
 
@@ -1488,264 +1420,122 @@ displayReviews();
 
 
 // ======================================================
-// RECOMMENDATION SYSTEM
+// TRENDING
 // ======================================================
 
-const recommendBtn =
-    document.getElementById(
-        "recommendBtn"
-    );
+function showTrending() {
+
+    const trendingList =
+        document.getElementById(
+            "trendingList"
+        );
 
 
-if (recommendBtn) {
-
-    recommendBtn.addEventListener(
-        "click",
-        () => {
-
-            const budget =
-                Number(
-                    document.getElementById(
-                        "aiBudget"
-                    )?.value
-                );
+    if (!trendingList) {
+        return;
+    }
 
 
-            const type =
-                document.getElementById(
-                    "aiType"
-                )?.value;
+    trendingList.innerHTML = "";
 
 
-            const recommendationResult =
-                document.getElementById(
-                    "recommendResult"
-                );
+    const trending =
+        restaurants.filter(
+            r => r.trending
+        );
 
 
-            const found =
-                restaurants.filter(r => {
+    trending.forEach(
+        function(r) {
 
-                    return (
-                        (!budget ||
-                            r.price <= budget) &&
-
-                        (!type ||
-                            type === "All" ||
-                            r.type === type)
-                    );
-
-                });
-
-
-            if (
-                !recommendationResult
-            ) {
-                return;
-            }
-
-
-            if (found.length === 0) {
-
-                recommendationResult.innerHTML =
-                    `
-                    <h3>
-                        ❌ No restaurant found.
-                    </h3>
-                    `;
-
-                return;
-            }
-
-
-            const best =
-                [...found].sort(
-                    (a, b) =>
-                        b.rating -
-                        a.rating
-                )[0];
-
-
-            recommendationResult.innerHTML =
-                `
-
-                <div class="restaurant-card">
-
-                    <img
-                        src="${escapeHTML(best.image)}"
-                        class="restaurant-img"
-                        alt="${escapeHTML(best.name)}"
-                    >
+            trendingList.innerHTML += `
+                <div class="trending-card">
 
                     <h3>
-                        ${escapeHTML(best.name)}
+                        ${escapeHTML(r.name)}
                     </h3>
 
                     <p>
-                        ⭐ ${best.rating}
+                        ⭐ ${r.rating.toFixed(1)}
                     </p>
 
                     <p>
-                        📍 ${escapeHTML(best.location)}
+                        📍 ${escapeHTML(r.location)}
                     </p>
 
                     <p>
-                        💰 ₹${best.price}
-                    </p>
-
-                    <p>
-                        🍽️ ${escapeHTML(best.type)}
+                        🍽️ ${escapeHTML(r.type)}
                     </p>
 
                 </div>
-
-                `;
+            `;
 
         }
     );
+
 }
 
 
 // ======================================================
-// BOOKING
+// CALL / WEBSITE
 // ======================================================
 
-const bookingForm =
-    document.getElementById(
-        "bookingForm"
-    );
+function callRestaurant(phone) {
 
+    if (!phone) {
 
-if (bookingForm) {
+        alert(
+            "Phone number unavailable."
+        );
 
-    bookingForm.addEventListener(
-        "submit",
-        function(e) {
+        return;
+    }
 
-            e.preventDefault();
-
-
-            const name =
-                document.getElementById(
-                    "customerName"
-                )?.value;
-
-
-            const date =
-                document.getElementById(
-                    "bookingDate"
-                )?.value;
-
-
-            const time =
-                document.getElementById(
-                    "bookingTime"
-                )?.value;
-
-
-            const guests =
-                document.getElementById(
-                    "guests"
-                )?.value;
-
-
-            const booking = {
-
-                name,
-
-                date,
-
-                time,
-
-                guests
-
-            };
-
-
-            let bookings =
-                JSON.parse(
-                    localStorage.getItem(
-                        "bookings"
-                    )
-                ) || [];
-
-
-            bookings.push(
-                booking
-            );
-
-
-            localStorage.setItem(
-                "bookings",
-                JSON.stringify(bookings)
-            );
-
-
-            const bookingMessage =
-                document.getElementById(
-                    "bookingMessage"
-                );
-
-
-            if (bookingMessage) {
-
-                bookingMessage.innerHTML =
-                    `
-                    ✅ Booking confirmed for
-                    <strong>
-                        ${escapeHTML(name)}
-                    </strong>
-
-                    on
-                    <strong>
-                        ${escapeHTML(date)}
-                    </strong>
-
-                    at
-                    <strong>
-                        ${escapeHTML(time)}
-                    </strong>
-
-                    for
-                    <strong>
-                        ${escapeHTML(guests)}
-                    </strong>
-                    guest(s).
-                    `;
-
-            }
-
-
-            bookingForm.reset();
-
-        }
-    );
+    window.location.href =
+        "tel:" + phone;
 }
 
 
-// ======================================================
-// THEME TOGGLE
-// ======================================================
+window.callRestaurant =
+    callRestaurant;
 
-const themeBtn =
-    document.getElementById(
-        "themeBtn"
+
+function openWebsite(website) {
+
+    if (!website) {
+
+        alert(
+            "Website unavailable."
+        );
+
+        return;
+    }
+
+
+    let url =
+        website.trim();
+
+
+    if (
+        !url.startsWith("http://") &&
+        !url.startsWith("https://")
+    ) {
+
+        url =
+            "https://" + url;
+    }
+
+
+    window.open(
+        url,
+        "_blank"
     );
 
-
-if (themeBtn) {
-
-    themeBtn.addEventListener(
-        "click",
-        () => {
-
-            document.body.classList.toggle(
-                "light"
-            );
-
-        }
-    );
 }
+
+
+window.openWebsite =
+    openWebsite;
 
 
 // ======================================================
@@ -1760,21 +1550,20 @@ function updateProfile() {
         ) || "Guest";
 
 
-    const profileNameEl =
+    const profileName =
         document.getElementById(
             "profileName"
         );
 
 
-    if (profileNameEl) {
+    if (profileName) {
 
-        profileNameEl.textContent =
+        profileName.textContent =
             username;
 
     }
 
 
-    // Favorites
     const favorites =
         JSON.parse(
             localStorage.getItem(
@@ -1783,21 +1572,20 @@ function updateProfile() {
         ) || [];
 
 
-    const favoriteCountEl =
+    const favoriteCount =
         document.getElementById(
             "favoriteCount"
         );
 
 
-    if (favoriteCountEl) {
+    if (favoriteCount) {
 
-        favoriteCountEl.textContent =
+        favoriteCount.textContent =
             favorites.length;
 
     }
 
 
-    // Bookings
     const bookings =
         JSON.parse(
             localStorage.getItem(
@@ -1806,62 +1594,63 @@ function updateProfile() {
         ) || [];
 
 
-    const bookingCountEl =
+    const bookingCount =
         document.getElementById(
             "bookingCount"
         );
 
 
-    if (bookingCountEl) {
+    if (bookingCount) {
 
-        bookingCountEl.textContent =
+        bookingCount.textContent =
             bookings.length;
 
     }
 
 
-    // Reservations
     const reservationList =
         document.getElementById(
             "reservationList"
         );
 
 
-    if (reservationList) {
+    if (!reservationList) {
+        return;
+    }
 
-        reservationList.innerHTML = "";
+
+    reservationList.innerHTML = "";
 
 
-        bookings.forEach(b => {
+    bookings.forEach(
+        function(booking) {
 
             reservationList.innerHTML += `
-
                 <div class="restaurant-card">
 
                     <h3>
-                        ${escapeHTML(b.name)}
+                        ${escapeHTML(booking.name)}
                     </h3>
 
                     <p>
-                        📅 ${escapeHTML(b.date)}
+                        📅 ${escapeHTML(booking.date)}
                     </p>
 
                     <p>
-                        🕒 ${escapeHTML(b.time)}
+                        🕒 ${escapeHTML(booking.time)}
                     </p>
 
                     <p>
-                        👥 ${escapeHTML(b.guests)}
-                        Guests
+                        👥 ${escapeHTML(booking.guests)}
+                        Guest(s)
                     </p>
 
                 </div>
-
             `;
 
-        });
+        }
+    );
 
-    }
 }
 
 
@@ -1869,9 +1658,12 @@ updateProfile();
 
 
 // ======================================================
-// START APPLICATION
+// INITIAL LOAD
 // ======================================================
 
 loadRestaurants();
 
+console.log(
+    "🚀 FoodFinder Stage 2 loaded successfully"
+);
 
