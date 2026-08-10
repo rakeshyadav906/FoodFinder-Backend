@@ -1,3 +1,72 @@
+
+
+// ================= AUTH SESSION =================
+
+async function checkAuthSession() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/api/auth/me", {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            localStorage.removeItem("userId");
+            localStorage.removeItem("email");
+
+            window.location.href = "login.html";
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.user) {
+
+            localStorage.setItem(
+                "username",
+                data.user.username
+            );
+
+            localStorage.setItem(
+                "userId",
+                data.user.id
+            );
+
+            localStorage.setItem(
+                "email",
+                data.user.email
+            );
+        }
+
+        console.log("✅ Logged-in user:", data.user);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Session check failed:",
+            error
+        );
+    }
+}
+
+checkAuthSession();
+
+
+// ================= RESTAURANTS =================
+
 // ======================================================
 // FOODFINDER - COMPLETE STAGE 2 SCRIPT
 // Compatible with current index.html + style.css
@@ -1666,4 +1735,47 @@ loadRestaurants();
 console.log(
     "🚀 FoodFinder Stage 2 loaded successfully"
 );
+
+// ================= AUTHENTICATION =================
+
+function updateAuthUI() {
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+
+    const profileName = document.getElementById("profileName");
+
+    if (profileName) {
+        profileName.textContent = username || "Guest";
+    }
+
+    const loginBtn = document.getElementById("loginNavBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    if (token) {
+        if (loginBtn) loginBtn.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
+    } else {
+        if (loginBtn) loginBtn.style.display = "inline-block";
+        if (logoutBtn) logoutBtn.style.display = "none";
+    }
+}
+
+
+// Logout
+const logoutBtn = document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+    logoutBtn.addEventListener("click", function () {
+
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("email");
+
+        window.location.href = "login.html";
+    });
+}
+
+updateAuthUI();
+
 
